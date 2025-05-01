@@ -1,10 +1,7 @@
-const SimpleStorage = artifacts.require("SimpleStorage");
+// const SimpleStorage = artifacts.require("SimpleStorage");
 const Voting = artifacts.require("Voting");
 
-module.exports = function (deployer) {
-  // Deploy SimpleStorage
-  deployer.deploy(SimpleStorage);
-  
+module.exports = function (deployer) {  
   // Deploy Voting contract
   deployer.deploy(Voting);
 };
