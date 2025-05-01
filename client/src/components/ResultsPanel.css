@@ -1,0 +1,168 @@
+.results-panel {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: 100%;
+    grid-column: 1 / -1; /* Make results panel take full width */
+  }
+  
+  .results-panel h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+  }
+  
+  .winner-section {
+    margin-bottom: 30px;
+  }
+  
+  .winner-section h4,
+  .all-results-section h4 {
+    color: #3498db;
+    margin-bottom: 15px;
+  }
+  
+  .winner-card {
+    background-color: #d4edda;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 5px solid #28a745;
+  }
+  
+  .winner-description {
+    font-size: 16px;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    word-break: break-word;
+  }
+  
+  .winner-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .winner-votes {
+    color: #155724;
+    font-size: 14px;
+  }
+  
+  .winner-percentage {
+    font-size: 18px;
+    font-weight: bold;
+    color: #155724;
+  }
+  
+  .results-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    font-size: 14px;
+    color: #6c757d;
+  }
+  .results-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .result-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .result-item.winner {
+    background-color: #f0fff4;
+    border-left: 5px solid #28a745;
+  }
+  
+  .result-rank {
+    margin-right: 10px;
+    font-weight: bold;
+    color: #6c757d;
+    min-width: 30px;
+  }
+  
+  .result-content {
+    flex: 1;
+  }
+  
+  .result-description {
+    font-size: 14px;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+  
+  .result-bar-container {
+    height: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  
+  .result-bar {
+    height: 100%;
+    background-color: #3498db;
+    border-radius: 5px;
+    transition: width 0.5s ease;
+  }
+  
+  .result-item.winner .result-bar {
+    background-color: #28a745;
+  }
+  
+  .result-votes {
+    margin-left: 15px;
+    text-align: right;
+    min-width: 80px;
+  }
+  
+  .vote-number {
+    display: block;
+    font-weight: bold;
+    color: #2c3e50;
+  }
+  
+  .vote-percentage {
+    display: block;
+    font-size: 12px;
+    color: #6c757d;
+  }
+  
+  @media (max-width: 600px) {
+    .winner-stats {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 5px;
+    }
+    
+    .result-item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .result-rank {
+      margin-bottom: 5px;
+    }
+    
+    .result-content {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    
+    .result-votes {
+      margin-left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+    }
+  }
