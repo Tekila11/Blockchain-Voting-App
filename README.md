@@ -1,4 +1,4 @@
-# Blockchain Voting dApp
+# Blockchain Voting App
 
 A decentralized voting application built with Ethereum smart contracts and React.
 
@@ -44,7 +44,7 @@ project/
 1. Clone the repository
    ```
    git clone <repository-url>
-   cd voting-dapp
+   cd voting-app
    ```
 
 2. Install dependencies
