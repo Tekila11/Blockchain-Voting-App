@@ -3,7 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 /**
  * @title Voting
- * @dev Implements voting process with admin-only proposal submission and voting deadline
+ * @dev Implements voting process
  */
 contract Voting {
     // Voter structure
@@ -35,17 +35,12 @@ contract Voting {
     Proposal[] public proposals;
     WorkflowStatus public workflowStatus;
     uint public winningProposalId;
-    
-    // New state variables for voting deadline
-    uint public votingDeadline;
-    bool public hasDeadline;
 
     // Events
     event VoterRegistered(address voterAddress);
     event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);
     event ProposalRegistered(uint proposalId);
     event Voted(address voter, uint proposalId);
-    event VotingDeadlineSet(uint timestamp);
 
     // Modifiers
     modifier onlyAdministrator() {
@@ -57,20 +52,11 @@ contract Voting {
         require(voters[msg.sender].isRegistered, "You are not a registered voter");
         _;
     }
-    
-    // Check if voting deadline has passed
-    modifier deadlineNotPassed() {
-        if (hasDeadline) {
-            require(block.timestamp <= votingDeadline, "Voting deadline has passed");
-        }
-        _;
-    }
 
     // Constructor
     constructor() {
         administrator = msg.sender;
         workflowStatus = WorkflowStatus.RegisteringVoters;
-        hasDeadline = false;
     }
 
     // Register a voter
@@ -81,25 +67,6 @@ contract Voting {
         voters[_voter].isRegistered = true;
         emit VoterRegistered(_voter);
     }
-    
-    // Set voting deadline
-    function setVotingDeadline(uint _timestamp) public onlyAdministrator {
-        require(workflowStatus == WorkflowStatus.RegisteringVoters || 
-                workflowStatus == WorkflowStatus.ProposalsRegistrationStarted, 
-                "Cannot set deadline at current status");
-        require(_timestamp > block.timestamp, "Deadline must be in the future");
-        
-        votingDeadline = _timestamp;
-        hasDeadline = true;
-        emit VotingDeadlineSet(_timestamp);
-    }
-    
-    // Remove voting deadline
-    function removeVotingDeadline() public onlyAdministrator {
-        require(hasDeadline, "No deadline is set");
-        hasDeadline = false;
-        emit VotingDeadlineSet(0);
-    }
 
     // Start the proposal registration phase
     function startProposalsRegistration() public onlyAdministrator {
@@ -109,8 +76,8 @@ contract Voting {
         emit WorkflowStatusChange(WorkflowStatus.RegisteringVoters, WorkflowStatus.ProposalsRegistrationStarted);
     }
 
-    // Register a proposal - MODIFIED: Only admin can submit proposals
-    function registerProposal(string memory _description) public onlyAdministrator {
+    // Register a proposal
+    function registerProposal(string memory _description) public onlyRegisteredVoter {
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationStarted, "Proposals registration is not active");
         require(bytes(_description).length > 0, "Proposal description cannot be empty");
         
@@ -140,7 +107,7 @@ contract Voting {
     }
 
     // Vote for a proposal
-    function vote(uint _proposalId) public onlyRegisteredVoter deadlineNotPassed {
+    function vote(uint _proposalId) public onlyRegisteredVoter {
         require(workflowStatus == WorkflowStatus.VotingSessionStarted, "Voting session is not active");
         require(!voters[msg.sender].hasVoted, "You have already voted");
         require(_proposalId < proposals.length, "Proposal does not exist");
@@ -153,18 +120,8 @@ contract Voting {
         emit Voted(msg.sender, _proposalId);
     }
 
-    // End the voting session - can be called by admin or automatically when deadline passes
-    function endVotingSession() public {
-        // Allow administrator to end voting manually
-        if (msg.sender == administrator) {
-            require(workflowStatus == WorkflowStatus.VotingSessionStarted, "Current status is not VotingSessionStarted");
-            workflowStatus = WorkflowStatus.VotingSessionEnded;
-            emit WorkflowStatusChange(WorkflowStatus.VotingSessionStarted, WorkflowStatus.VotingSessionEnded);
-            return;
-        }
-        
-        // Allow anyone to end voting if deadline has passed
-        require(hasDeadline && block.timestamp > votingDeadline, "Voting deadline has not passed or no deadline set");
+    // End the voting session
+    function endVotingSession() public onlyAdministrator {
         require(workflowStatus == WorkflowStatus.VotingSessionStarted, "Current status is not VotingSessionStarted");
         
         workflowStatus = WorkflowStatus.VotingSessionEnded;
@@ -186,19 +143,6 @@ contract Voting {
         
         workflowStatus = WorkflowStatus.VotesTallied;
         emit WorkflowStatusChange(WorkflowStatus.VotingSessionEnded, WorkflowStatus.VotesTallied);
-    }
-
-    // Get voting deadline info
-    function getDeadlineInfo() public view returns (bool, uint) {
-        return (hasDeadline, votingDeadline);
-    }
-
-    // Get remaining time until deadline (in seconds)
-    function getRemainingTime() public view returns (uint) {
-        if (!hasDeadline || block.timestamp >= votingDeadline) {
-            return 0;
-        }
-        return votingDeadline - block.timestamp;
     }
 
     // Get winning proposal

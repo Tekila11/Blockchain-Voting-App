@@ -26,6 +26,11 @@ function VotingApp({ web3, accounts }) {
   const [winner, setWinner] = useState({ description: '', voteCount: 0 });
   const [isLoading, setIsLoading] = useState(false);
   const [transactionStatus, setTransactionStatus] = useState('');
+  
+  // New state variables for deadline
+  const [hasDeadline, setHasDeadline] = useState(false);
+  const [votingDeadline, setVotingDeadline] = useState(0);
+  const [remainingTime, setRemainingTime] = useState('');
 
   // Initialize contract
   useEffect(() => {
@@ -67,6 +72,34 @@ function VotingApp({ web3, accounts }) {
       updateContractState(contract, accounts[0]);
     }
   }, [accounts, contract]);
+
+  // Update countdown timer
+  useEffect(() => {
+    let timer;
+    if (hasDeadline && votingDeadline > Math.floor(Date.now() / 1000)) {
+      timer = setInterval(() => {
+        const now = Math.floor(Date.now() / 1000);
+        if (now >= votingDeadline) {
+          setRemainingTime('Voting period has ended');
+          clearInterval(timer);
+        } else {
+          const diff = votingDeadline - now;
+          const days = Math.floor(diff / 86400);
+          const hours = Math.floor((diff % 86400) / 3600);
+          const minutes = Math.floor((diff % 3600) / 60);
+          const seconds = diff % 60;
+          
+          setRemainingTime(
+            `${days}d ${hours}h ${minutes}m ${seconds}s`
+          );
+        }
+      }, 1000);
+    } else if (hasDeadline) {
+      setRemainingTime('Voting period has ended');
+    }
+    
+    return () => clearInterval(timer);
+  }, [hasDeadline, votingDeadline]);
 
   // Setup event listeners for contract events
   const setupEventListeners = (contractInstance) => {
@@ -120,6 +153,25 @@ function VotingApp({ web3, accounts }) {
         console.error("Event error:", error);
         setIsLoading(false);
       });
+      
+    // New event for deadline changes
+    contractInstance.events.VotingDeadlineSet({})
+      .on('data', (event) => {
+        const timestamp = Number(event.returnValues.timestamp);
+        if (timestamp === 0) {
+          setTransactionStatus('Voting deadline removed.');
+          setHasDeadline(false);
+        } else {
+          setTransactionStatus(`Voting deadline set to ${new Date(timestamp * 1000).toLocaleString()}`);
+          setHasDeadline(true);
+          setVotingDeadline(timestamp);
+        }
+        setIsLoading(false);
+      })
+      .on('error', error => {
+        console.error("Event error:", error);
+        setIsLoading(false);
+      });
   };
 
   // Update contract state
@@ -134,6 +186,11 @@ function VotingApp({ web3, accounts }) {
       
       const status = await contractInstance.methods.workflowStatus().call();
       setWorkflowStatus(Number(status));
+      
+      // Get deadline info
+      const deadlineInfo = await contractInstance.methods.getDeadlineInfo().call();
+      setHasDeadline(deadlineInfo[0]);
+      setVotingDeadline(Number(deadlineInfo[1]));
       
       if (Number(status) === 5) { // If votes are tallied
         try {
@@ -191,6 +248,51 @@ function VotingApp({ web3, accounts }) {
     }
   };
 
+  // Register a proposal (now admin-only)
+  const registerProposal = async (description) => {
+    setIsLoading(true);
+    setTransactionStatus('');
+    
+    try {
+      await contract.methods.registerProposal(description).send({ from: accounts[0] });
+      // Status will be updated by event listener
+    } catch (error) {
+      console.error("Error registering proposal:", error);
+      setTransactionStatus('Failed to register proposal: ' + (error.message || 'Unknown error'));
+      setIsLoading(false);
+    }
+  };
+
+  // Set voting deadline
+  const setDeadline = async (timestamp) => {
+    setIsLoading(true);
+    setTransactionStatus('');
+    
+    try {
+      await contract.methods.setVotingDeadline(timestamp).send({ from: accounts[0] });
+      // Status will be updated by event listener
+    } catch (error) {
+      console.error("Error setting deadline:", error);
+      setTransactionStatus('Failed to set deadline: ' + (error.message || 'Unknown error'));
+      setIsLoading(false);
+    }
+  };
+
+  // Remove voting deadline
+  const removeDeadline = async () => {
+    setIsLoading(true);
+    setTransactionStatus('');
+    
+    try {
+      await contract.methods.removeVotingDeadline().send({ from: accounts[0] });
+      // Status will be updated by event listener
+    } catch (error) {
+      console.error("Error removing deadline:", error);
+      setTransactionStatus('Failed to remove deadline: ' + (error.message || 'Unknown error'));
+      setIsLoading(false);
+    }
+  };
+
   // Change workflow status
   const changeWorkflowStatus = async (newStatus) => {
     setIsLoading(true);
@@ -220,21 +322,6 @@ function VotingApp({ web3, accounts }) {
     } catch (error) {
       console.error("Error changing workflow status:", error);
       setTransactionStatus('Failed to change workflow status: ' + (error.message || 'Unknown error'));
-      setIsLoading(false);
-    }
-  };
-
-  // Register a proposal
-  const registerProposal = async (description) => {
-    setIsLoading(true);
-    setTransactionStatus('');
-    
-    try {
-      await contract.methods.registerProposal(description).send({ from: accounts[0] });
-      // Status will be updated by event listener
-    } catch (error) {
-      console.error("Error registering proposal:", error);
-      setTransactionStatus('Failed to register proposal: ' + (error.message || 'Unknown error'));
       setIsLoading(false);
     }
   };
@@ -281,6 +368,18 @@ function VotingApp({ web3, accounts }) {
         </div>
       </div>
       
+      {hasDeadline && workflowStatus === 3 && (
+        <div className="deadline-banner">
+          <div className="deadline-timer">
+            <span className="timer-label">Voting Ends In:</span>
+            <span className="timer-value">{remainingTime}</span>
+          </div>
+          <div className="deadline-date">
+            {new Date(votingDeadline * 1000).toLocaleString()}
+          </div>
+        </div>
+      )}
+      
       {transactionStatus && (
         <div className="status-message">
           {transactionStatus}
@@ -292,23 +391,33 @@ function VotingApp({ web3, accounts }) {
         {/* Admin Panel */}
         {isAdmin && (
           <AdminPanel 
+            web3={web3}
+            contract={contract}
+            accounts={accounts}
             workflowStatus={workflowStatus}
             proposalsCount={proposals.length}
             registerVoter={registerVoter}
+            registerProposal={registerProposal}
             changeWorkflowStatus={changeWorkflowStatus}
             isLoading={isLoading}
+            hasDeadline={hasDeadline}
+            votingDeadline={votingDeadline}
+            setVotingDeadline={setDeadline}
+            removeVotingDeadline={removeDeadline}
           />
         )}
         
-        {/* Voter Panel */}
+        {/* Voter Panel - Only shown to registered voters who are not administrators */}
         {isRegistered && !isAdmin && (
           <VoterPanel
             workflowStatus={workflowStatus}
             proposals={proposals}
-            registerProposal={registerProposal}
             vote={vote}
             hasVoted={hasVoted}
             isLoading={isLoading}
+            hasDeadline={hasDeadline}
+            votingDeadline={votingDeadline}
+            remainingTime={remainingTime}
           />
         )}
         
